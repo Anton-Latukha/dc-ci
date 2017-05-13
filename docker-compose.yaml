@@ -1,0 +1,84 @@
+version: "3"
+
+#Get any image from the hub and tag it to point to your registry:
+#docker pull ubuntu && docker tag ubuntu localhost:5000/ubuntu
+#… then push it to your registry:
+#docker push localhost:5000/ubuntu
+#… then pull it back from your registry:
+#docker pull localhost:5000/ubuntu
+#To stop your registry, you would:
+#docker stop registry && docker rm -v registry
+
+
+services:
+
+  jenkins:
+    image: jenkins:2.46.2
+    volumes:
+      - jenkinsB:/var/jenkins_home
+    links:
+      - node
+      - nexus
+      - registry
+#    environment:
+#      - JAVA_OPTS
+#      - JENKINS_SLAVE_AGENT_PORT
+    ports:
+      - 8080:8080 # Web interface
+      - 50000:50000 # to attach build slave servers
+      
+  node:
+    build:
+      context: ./node
+    ports:
+     - 8088:8088
+#   ports: need to EXPOSE application default port
+
+
+
+#Default credentials are: admin / admin123
+#It can take some time (2-3 minutes) for the service to launch in a new container.
+#Installation of Nexus is to /opt/sonatype/nexus.
+
+#A persistent directory, /nexus-data, is used for configuration, logs, and storage. This directory needs to be writable by the Nexus process, which runs as UID 200.
+
+#There is an environment variable that can used to pass JVM arguments to the startup script
+#    INSTALL4J_ADD_VM_PARAMS, passed to the Install4J startup script. Defaults to -Xms1200m -Xmx1200m.
+    
+#Another environment variable can be used to control the Nexus Context Path
+#    NEXUS_CONTEXT, defaults to /
+
+  nexus:
+    image: sonatype/nexus3
+    volumes:
+      - nexusD:/nexus-data
+    ports:
+      - 8081:8081
+
+  
+  registry:
+    image: registry:2
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    volumes:
+      - registry:/var/lib/registry
+#      - :/certs
+#      - :/auth
+#    environment:
+#      - REGISTRY_HTTP_TLS_CERTIFICATE: 
+#      - REGISTRY_HTTP_TLS_KEY: 
+#      - REGISTRY_AUTH: 
+#      - REGISTRY_AUTH_HTPASSWD_PATH: 
+#      - REGISTRY_AUTH_HTPASSWD_REALM: 
+    ports:
+      - 5000:5000
+      
+
+volumes:
+  jenkinsB:
+  nexusD:
+  registry:
